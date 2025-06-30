@@ -1,2 +1,43 @@
-# marvel-characters
-A complete end-to-end MLOps pipeline for Marvel character data.
+<h1 align="center">
+Marvelous MLOps End-to-end MLOps with Databricks course
+
+## Set up your environment
+In this course, we use Databricks serverless [version 3](https://docs.databricks.com/aws/en/release-notes/serverless/environment-version/three)
+
+In our examples, we use UV. Check out the documentation on how to install it: https://docs.astral.sh/uv/getting-started/installation/
+
+### 🔐 Accessing private GitHub dependencies
+
+This project depends on a private repository called `marvelous`.
+The source is configured in `pyproject.toml` in project dependencies:
+
+```
+"marvelous@git+https://github.com/end-to-end-mlops-databricks-3/marvelous@0.1.0"
+```
+
+This will work locally once you authernticate to GitHub using https, and your credentials are stored in the keychain.
+On Databricks, it works if you use Course cluster policy: it contains init script (init_script.sh) and the required environment variable.
+
+To create a new environment and create a lockfile, run:
+
+```
+uv venv -p 3.11 .venv
+source .venv/bin/activate
+uv sync --extra dev
+```
+
+
+
+# Data
+Using the [**Marvel Characters Dataset**](https://www.kaggle.com/datasets/mohitbansal31s/marvel-characters?resource=download) from Kaggle.
+
+This dataset contains detailed information about Marvel characters (e.g., name, powers, physical attributes, alignment, etc.).
+It is used to build classification and feature engineering models for various MLOps tasks, such as predicting character attributes or status.
+
+# Scripts
+
+- `01.process_data.py`: Loads and preprocesses the Marvel dataset, splits into train/test, and saves to the catalog.
+- `02.train_register_fe_model.py`: Performs feature engineering and trains the Marvel character model.
+- `03.deploy_model.py`: Deploys the trained Marvel model to a Databricks model serving endpoint.
+- `04.post_commit_status.py`: Posts status updates for Marvel integration tests to GitHub.
+- `05.refresh_monitor.py`: Refreshes monitoring tables and dashboards for Marvel model serving.
