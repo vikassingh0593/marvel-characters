@@ -84,7 +84,6 @@ runs/
 logs/
 output/
 outputs/
-models/
 checkpoints/
 
 # MLflow

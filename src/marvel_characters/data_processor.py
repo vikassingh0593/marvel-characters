@@ -42,8 +42,8 @@ class DataProcessor:
         self.df["Weight"] = pd.to_numeric(self.df["Weight"], errors="coerce")
 
         # Fill missing values with median for numeric features
-        self.df["Height"].fillna(self.df["Height"].median(), inplace=True)
-        self.df["Weight"].fillna(self.df["Weight"].median(), inplace=True)
+        self.df["Height"] = self.df["Height"].fillna(self.df["Height"].median())
+        self.df["Weight"] = self.df["Weight"].fillna(self.df["Weight"].median())
 
         # Handle numeric features
         num_features = self.config.num_features
@@ -54,14 +54,14 @@ class DataProcessor:
         cat_features = self.config.cat_features
         for cat_col in cat_features:
             if cat_col in self.df.columns:
-                self.df[cat_col].fillna("Unknown", inplace=True)
+                self.df[cat_col] = self.df[cat_col].fillna("Unknown")
                 self.df[cat_col] = self.df[cat_col].astype("category")
 
         # Handle target variable (Alive)
         target = self.config.target
         if target in self.df.columns:
             # Convert Alive to binary (1 for alive, 0 for dead)
-            self.df[target] = (self.df[target].str.lower() == "alive").astype(int)
+            self.df[target] = (self.df[target].astype(str).str.lower() == "alive").astype(int)
 
         # Extract target and relevant features
         relevant_columns = cat_features + num_features + [target] + ["PageID"]

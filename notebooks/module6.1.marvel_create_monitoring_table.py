@@ -14,7 +14,7 @@ from pyspark.sql.functions import current_timestamp, to_utc_timestamp
 import numpy as np
 from pyspark.sql import SparkSession
 from loguru import logger
-from house_price.config import ProjectConfig
+from marvel_characters.config import ProjectConfig
 
 spark = SparkSession.builder.getOrCreate()
 
@@ -68,7 +68,7 @@ print(feature_importances.head(5))
 # MAGIC ## Generate Synthetic Data
 
 # COMMAND ----------
-from house_price.data_processor import generate_synthetic_data
+from marvel_characters.data_processor import generate_synthetic_data
 
 inference_data_skewed = generate_synthetic_data(train_set, drift= True, num_rows=200)
 
@@ -89,48 +89,6 @@ inference_data_skewed_spark.write.mode("overwrite").saveAsTable(
 
 # COMMAND ----------
 
-import time
-from databricks.sdk import WorkspaceClient
-
-workspace = WorkspaceClient()
-
-#write into feature table; update online table
-import time
-from databricks.sdk import WorkspaceClient
-
-workspace = WorkspaceClient()
-
-#write into feature table; update online table
-spark.sql(f"""
-    INSERT INTO {config.catalog_name}.{config.schema_name}.marvel_features
-    SELECT Id, Height, Weight, Gender
-    FROM {config.catalog_name}.{config.schema_name}.inference_data_skewed
-""")
-  
-online_table_name = f"{config.catalog_name}.{config.schema_name}.marvel_features_online"
-
-existing_table = workspace.online_tables.get(online_table_name)
-logger.info("Online table already exists. Inititating table update.")
-pipeline_id = existing_table.spec.pipeline_id
-update_response = workspace.pipelines.start_update(pipeline_id=pipeline_id, full_refresh=False)
-update_response = workspace.pipelines.start_update(
-    pipeline_id=pipeline_id, full_refresh=False)
-while True:
-    update_info = workspace.pipelines.get_update(pipeline_id=pipeline_id, 
-                            update_id=update_response.update_id)
-    state = update_info.update.state.value
-    if state == 'COMPLETED':
-        break
-    elif state in ['FAILED', 'CANCELED']:
-        raise SystemError("Online table failed to update.")
-    elif state == 'WAITING_FOR_RESOURCES':
-        print("Pipeline is waiting for resources.")
-    else:
-        print(f"Pipeline is in {state} state.")
-    time.sleep(30)
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Send Data to the Endpoint
 
@@ -144,7 +102,7 @@ import datetime
 import itertools
 from pyspark.sql import SparkSession
 
-from house_price.config import ProjectConfig
+from marvel_characters.config import ProjectConfig
 
 spark = SparkSession.builder.getOrCreate()
 
