@@ -9,11 +9,12 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 from conftest import CATALOG_DIR, MLRUNS_DIR
-from house_price import PROJECT_DIR
-from house_price.config import ProjectConfig, Tags
-from house_price.models.custom_model import CustomModel
 from loguru import logger
 from pyspark.sql import SparkSession
+
+from marvel_characters import PROJECT_DIR
+from marvel_characters.config import ProjectConfig, Tags
+from marvel_characters.models.custom_model import CustomModel
 
 whl_file_name = None  # Global variable to store the .whl file name
 
