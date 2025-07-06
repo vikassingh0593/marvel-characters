@@ -2,11 +2,11 @@
 
 import pandas as pd
 import pytest
-from house_price import PROJECT_DIR
-from house_price.config import ProjectConfig, Tags
 from loguru import logger
 from pyspark.sql import SparkSession
 
+from marvel_characters import PROJECT_DIR
+from marvel_characters.config import ProjectConfig, Tags
 from tests.unit_tests.spark_config import spark_config
 
 
@@ -41,7 +41,7 @@ def config() -> ProjectConfig:
 
     :return: The loaded project configuration
     """
-    config_file_path = (PROJECT_DIR / "project_config.yml").resolve()
+    config_file_path = (PROJECT_DIR / "project_config_marvel.yml").resolve()
     logger.info(f"Current config file path: {config_file_path.as_posix()}")
     config = ProjectConfig.from_yaml(config_file_path.as_posix())
     return config

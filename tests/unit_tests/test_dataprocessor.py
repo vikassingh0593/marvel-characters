@@ -44,7 +44,7 @@ def test_column_transformations(sample_data: pd.DataFrame, config: ProjectConfig
     """Test column transformations performed by the DataProcessor.
 
     This function checks if specific column transformations are applied correctly,
-    such as removing the GarageYrBlt column and changing data types of Id and MasVnrType.
+    such as changing data types of Id.
 
     :param sample_data: Input DataFrame containing sample data
     :param config: Configuration object for the project
@@ -53,16 +53,17 @@ def test_column_transformations(sample_data: pd.DataFrame, config: ProjectConfig
     processor = DataProcessor(pandas_df=sample_data, config=config, spark=spark_session)
     processor.preprocess()
 
-    assert "GarageYrBlt" not in processor.df.columns
     assert processor.df["Id"].dtype == "object"
-    assert processor.df["MasVnrType"].dtype == "category"
+    # Check that numerical features are present
+    assert "Height" in processor.df.columns
+    assert "Weight" in processor.df.columns
 
 
 def test_missing_value_handling(sample_data: pd.DataFrame, config: ProjectConfig, spark_session: SparkSession) -> None:
     """Test missing value handling in the DataProcessor.
 
     This function verifies that missing values are handled correctly for
-    LotFrontage, MasVnrType, and MasVnrArea columns.
+    Height and Weight columns.
 
     :param sample_data: Input DataFrame containing sample data
     :param config: Configuration object for the project
@@ -71,9 +72,9 @@ def test_missing_value_handling(sample_data: pd.DataFrame, config: ProjectConfig
     processor = DataProcessor(pandas_df=sample_data, config=config, spark=spark_session)
     processor.preprocess()
 
-    assert processor.df["LotFrontage"].isna().sum() == 0
-    assert (processor.df["MasVnrType"] == "None").sum() > 0
-    assert (processor.df["MasVnrArea"] == 0).sum() > 0
+    # Check that numerical features don't have NaN values after preprocessing
+    assert processor.df["Height"].isna().sum() == 0
+    assert processor.df["Weight"].isna().sum() == 0
 
 
 def test_column_selection(sample_data: pd.DataFrame, config: ProjectConfig, spark_session: SparkSession) -> None:
