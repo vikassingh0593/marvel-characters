@@ -27,7 +27,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
 from marvel_characters.config import ProjectConfig, Tags
-from marvel_characters.utils import adjust_predictions
 
 
 class MarvelCharacterModelWrapper(mlflow.pyfunc.PythonModel):
@@ -143,9 +142,9 @@ class CustomModel:
 
             # Evaluate metrics
             accuracy = accuracy_score(self.y_test, y_pred)
-            precision = precision_score(self.y_test, y_pred, average='weighted')
-            recall = recall_score(self.y_test, y_pred, average='weighted')
-            f1 = f1_score(self.y_test, y_pred, average='weighted')
+            precision = precision_score(self.y_test, y_pred, average="weighted")
+            recall = recall_score(self.y_test, y_pred, average="weighted")
+            f1 = f1_score(self.y_test, y_pred, average="weighted")
 
             logger.info(f"📊 Accuracy: {accuracy}")
             logger.info(f"📊 Precision: {precision}")
@@ -252,7 +251,7 @@ class CustomModel:
         predictions = model.predict(input_data)
 
         # Return predictions
-        return predictions 
+        return predictions
 
     def model_improved(self, test_set: pd.DataFrame) -> bool:
         """Evaluate the model performance on the test set.
@@ -277,8 +276,8 @@ class CustomModel:
         # Compute metrics
         acc_latest = accuracy_score(y_test, y_pred_latest)
         acc_current = accuracy_score(y_test, y_pred_current)
-        f1_latest = f1_score(y_test, y_pred_latest, average='weighted')
-        f1_current = f1_score(y_test, y_pred_current, average='weighted')
+        f1_latest = f1_score(y_test, y_pred_latest, average="weighted")
+        f1_current = f1_score(y_test, y_pred_current, average="weighted")
 
         logger.info(f"Accuracy (Current): {acc_current}, F1 (Current): {f1_current}")
         logger.info(f"Accuracy (Latest): {acc_latest}, F1 (Latest): {f1_latest}")

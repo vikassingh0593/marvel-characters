@@ -7,6 +7,7 @@ from databricks.sdk.service.serving import (
     ServedEntityInput,
 )
 
+
 class ModelServing:
     """Manages model serving in Databricks for Marvel characters."""
 

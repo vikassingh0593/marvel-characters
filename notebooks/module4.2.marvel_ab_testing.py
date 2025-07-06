@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 from mlflow.models import infer_signature
 from pyspark.sql import SparkSession
 
-from marvel_characters.config import ProjectConfig
+from marvel_characters.config import ProjectConfig, Tags
 from marvel_characters.models.basic_model import BasicModel
 
 # COMMAND ----------
@@ -39,6 +39,8 @@ if not is_databricks():
 
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 spark = SparkSession.builder.getOrCreate()
+# Define tags (customize as needed)
+tags = Tags(git_sha="dev", branch="ab-testing")
 
 # COMMAND ----------
 catalog_name = config.catalog_name
@@ -46,7 +48,7 @@ schema_name = config.schema_name
 
 # COMMAND ----------
 # Train model A
-basic_model_a = BasicModel(config=config, spark=spark)
+basic_model_a = BasicModel(config=config, tags=tags, spark=spark)
 basic_model_a.load_data()
 basic_model_a.prepare_features()
 basic_model_a.train()
@@ -56,7 +58,7 @@ model_A_uri = f"models:/{basic_model_a.model_name}@latest-model"
 
 # COMMAND ----------
 # Train model B (with different hyperparameters or features)
-basic_model_b = BasicModel(config=config, spark=spark)
+basic_model_b = BasicModel(config=config, tags=tags, spark=spark)
 basic_model_b.parameters = {"learning_rate": 0.01, "n_estimators": 1000, "max_depth": 6}
 basic_model_b.model_name = f"{catalog_name}.{schema_name}.marvel_character_model_basic_B"
 basic_model_b.load_data()

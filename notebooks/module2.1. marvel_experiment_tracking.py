@@ -5,12 +5,15 @@ import os
 
 from dotenv import load_dotenv
 
+# Set up Databricks or local MLflow tracking
+def is_databricks():
+    return "DATABRICKS_RUNTIME_VERSION" in os.environ
 
 # COMMAND ----------
 mlflow.get_tracking_uri()
 
 # COMMAND ----------
-if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
+if not is_databricks():
     load_dotenv()
     profile = os.environ.get("PROFILE", "DEFAULT")
     mlflow.set_tracking_uri(f"databricks://{profile}")

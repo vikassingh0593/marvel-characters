@@ -27,50 +27,13 @@ test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_set").t
 
 # COMMAND ----------
 
-
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
-
-# Encode categorical and datetime variables
-def preprocess_data(df):
-    label_encoders = {}
-    for col in df.select_dtypes(include=['object', 'datetime']).columns:
-        le = LabelEncoder()
-        df[col] = le.fit_transform(df[col].astype(str))
-        label_encoders[col] = le
-    return df, label_encoders
-
-train_set, label_encoders = preprocess_data(train_set)
-
-# Define features and target (adjust columns accordingly)
-features = train_set.drop(columns=["Alive"])
-target = train_set["Alive"]
-
-# Train a Random Forest model
-model = RandomForestClassifier(random_state=42)
-model.fit(features, target)
-
-# Identify the most important features
-feature_importances = pd.DataFrame({
-    'Feature': features.columns,
-    'Importance': model.feature_importances_
-}).sort_values(by='Importance', ascending=False)
-
-print("Top 5 important features:")
-print(feature_importances.head(5))
-
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ## Generate Synthetic Data
 
 # COMMAND ----------
 from marvel_characters.data_processor import generate_synthetic_data
 
-inference_data_skewed = generate_synthetic_data(train_set, drift= True, num_rows=200)
+inference_data_skewed = generate_synthetic_data(train_set, drift= True, num_rows=100)
 
 # COMMAND ----------
 
@@ -98,8 +61,6 @@ import pandas as pd
 from pyspark.sql.functions import col
 from pyspark.sql.functions import current_timestamp, to_utc_timestamp
 import numpy as np
-import datetime
-import itertools
 from pyspark.sql import SparkSession
 
 from marvel_characters.config import ProjectConfig
@@ -107,7 +68,7 @@ from marvel_characters.config import ProjectConfig
 spark = SparkSession.builder.getOrCreate()
 
 # Load configuration
-config = ProjectConfig.from_yaml(config_path="project_config_marvel.yml", env="dev")
+config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 
 test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_set") \
                         .withColumn("Id", col("Id").cast("string")) \

@@ -1,6 +1,5 @@
 """Data preprocessing module for Marvel characters."""
 
-import datetime
 import time
 
 import numpy as np
@@ -36,7 +35,6 @@ class DataProcessor:
         if "Marital Status" in self.df.columns:
             self.df.rename(columns={"Marital Status": "Marital_Status"}, inplace=True)
 
-
         # Handle missing values and convert data types as needed
         self.df["Height"] = pd.to_numeric(self.df["Height"], errors="coerce")
         self.df["Weight"] = pd.to_numeric(self.df["Weight"], errors="coerce")
@@ -68,7 +66,7 @@ class DataProcessor:
         # Only include columns that exist in the dataframe
         existing_columns = [col for col in relevant_columns if col in self.df.columns]
         self.df = self.df[existing_columns]
-        
+
         # Rename PageID to Id for consistency
         if "PageID" in self.df.columns:
             self.df = self.df.rename(columns={"PageID": "Id"})
@@ -187,4 +185,4 @@ def generate_synthetic_data(df: pd.DataFrame, drift: bool = False, num_rows: int
 
 def generate_test_data(df: pd.DataFrame, drift: bool = False, num_rows: int = 100) -> pd.DataFrame:
     """Generate test data matching input DataFrame distributions with optional drift."""
-    return generate_synthetic_data(df, drift, num_rows) 
+    return generate_synthetic_data(df, drift, num_rows)

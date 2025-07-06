@@ -25,4 +25,4 @@ def get_version() -> str:
             return file.read().strip()
 
 
-__version__ = get_version() 
+__version__ = get_version()

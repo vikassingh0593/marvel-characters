@@ -7,7 +7,6 @@ from pyspark.sql import SparkSession
 
 from marvel_characters.config import ProjectConfig, Tags
 from marvel_characters.models.custom_model import CustomModel
-from marvelous.common import create_parser
 
 args = create_parser()
 

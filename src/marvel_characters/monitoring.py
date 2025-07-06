@@ -25,9 +25,7 @@ def create_or_refresh_monitoring(config: ProjectConfig, spark: SparkSession, wor
     :param spark: Spark session used for executing SQL queries and transformations.
     :param workspace: Workspace object used for managing quality monitors.
     """
-    inf_table = spark.sql(
-        f"SELECT * FROM {config.catalog_name}.{config.schema_name}.`model-serving-fe_payload`"
-    )
+    inf_table = spark.sql(f"SELECT * FROM {config.catalog_name}.{config.schema_name}.`model-serving-fe_payload`")
 
     request_schema = StructType(
         [
@@ -73,9 +71,7 @@ def create_or_refresh_monitoring(config: ProjectConfig, spark: SparkSession, wor
 
     df_exploded = inf_table_parsed.withColumn("record", F.explode(F.col("parsed_request.dataframe_records")))
 
-    df_final = df_exploded.withColumn(
-        "timestamp_ms", (F.col("request_time").cast("long") * 1000)
-    ).select(
+    df_final = df_exploded.withColumn("timestamp_ms", (F.col("request_time").cast("long") * 1000)).select(
         F.col("request_time").alias("timestamp"),  # Use request_time as the timestamp
         F.col("timestamp_ms"),  # Select the newly created timestamp_ms column
         "databricks_request_id",
@@ -160,4 +156,4 @@ def create_monitoring_table(config: ProjectConfig, spark: SparkSession, workspac
     )
 
     # Important to update monitoring
-    spark.sql(f"ALTER TABLE {monitoring_table} SET TBLPROPERTIES (delta.enableChangeDataFeed = true);") 
+    spark.sql(f"ALTER TABLE {monitoring_table} SET TBLPROPERTIES (delta.enableChangeDataFeed = true);")

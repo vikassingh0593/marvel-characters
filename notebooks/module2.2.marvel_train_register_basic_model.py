@@ -7,7 +7,10 @@ from marvel_characters.config import ProjectConfig, Tags
 from marvel_characters.models.basic_model import BasicModel
 
 from dotenv import load_dotenv
-from marvelous.common import is_databricks
+
+# Set up Databricks or local MLflow tracking
+def is_databricks():
+    return "DATABRICKS_RUNTIME_VERSION" in os.environ
 
 # COMMAND ----------
 # If you have DEFAULT profile and are logged in with DEFAULT profile,
@@ -16,14 +19,15 @@ from marvelous.common import is_databricks
 if not is_databricks():
     load_dotenv()
     import os
+    os.environ["PROFILE"] = "marvelous"
     profile = os.environ["PROFILE"]
     mlflow.set_tracking_uri(f"databricks://{profile}")
     mlflow.set_registry_uri(f"databricks-uc://{profile}")
 
 
-config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="prd")
+config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 spark = SparkSession.builder.getOrCreate()
-tags = Tags(**{"git_sha": "abcd12345", "branch": "week2"})
+tags = Tags(**{"git_sha": "abcd12345", "branch": "module2"})
 
 # COMMAND ----------
 # Initialize model with the config path
@@ -40,7 +44,7 @@ basic_model.log_model()
 
 # COMMAND ----------
 run_id = mlflow.search_runs(
-    experiment_names=["/Shared/marvel-characters-basic"], filter_string="tags.branch='week2'"
+    experiment_names=["/Shared/marvel-characters-basic"], filter_string="tags.branch='module2'"
 ).run_id[0]
 
 model = mlflow.sklearn.load_model(f"runs:/{run_id}/lightgbm-pipeline-model")

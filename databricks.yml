@@ -1,8 +1,8 @@
 bundle:
   name: marvel-characters
 
-include:
-  - bundle_monitoring.yml
+# include:
+#   - bundle_monitoring.yml
 
 artifacts:
   default:
@@ -36,31 +36,23 @@ resources:
   jobs:
     deployment:
       name: ${bundle.name}-workflow
-      # email_notifications:
-      #     on_failure:
-      #       - example@example.com
       schedule:
         quartz_cron_expression: "0 0 6 ? * MON"
         timezone_id: "Europe/Amsterdam"
         pause_status: ${var.schedule_pause_status}
       tags:
         project_name: "marvel-characters"
-      job_clusters:
-        - job_cluster_key: "marvel-characters-cluster"
-          new_cluster:
-            spark_version: "15.4.x-scala2.12"
-            data_security_mode: "SINGLE_USER"
-            node_type_id: "r3.xlarge"
-            driver_node_type_id: "r3.xlarge"
-            autoscale:
-              min_workers: 1
-              max_workers: 1
-            spark_env_vars:
-              "TOKEN_STATUS_CHECK": "{{secrets/mlops_course/git_token_status_check}}"
+
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"
+            dependencies:
+              - ./dist/*.whl
 
       tasks:
         - task_key: "preprocessing"
-          job_cluster_key: "marvel-characters-cluster"
+          environment_key: default
           spark_python_task:
             python_file: "scripts/01.process_data.py"
             parameters:
@@ -71,10 +63,9 @@ resources:
               - "${var.env}"
               - "--is_test"
               - "${var.is_test}"
-          libraries:
-           - whl: ./dist/*.whl
+
         - task_key: "train_model"
-          job_cluster_key: "marvel-characters-cluster"
+          environment_key: default
           depends_on:
             - task_key: "preprocessing"
           spark_python_task:
@@ -93,8 +84,7 @@ resources:
               - "${var.branch}"
               - "--is_test"
               - "${var.is_test}"
-          libraries:
-            - whl: ./dist/*.whl
+
         - task_key: model_updated
           condition_task:
             op: "EQUAL_TO"
@@ -102,11 +92,12 @@ resources:
             right: "1"
           depends_on:
             - task_key: "train_model"
+
         - task_key: "deploy_model"
+          environment_key: default
           depends_on:
             - task_key: "model_updated"
               outcome: "true"
-          job_cluster_key: "marvel-characters-cluster"
           spark_python_task:
             python_file: "scripts/03.deploy_model.py"
             parameters:
@@ -117,8 +108,7 @@ resources:
               - "${var.env}"
               - "--is_test"
               - "${var.is_test}"
-          libraries:
-            - whl: ./dist/*.whl
+
         - task_key: post_commit_status_required
           condition_task:
             op: "EQUAL_TO"
@@ -126,11 +116,12 @@ resources:
             right: "1"
           depends_on:
             - task_key: "deploy_model"
+
         - task_key: "post_commit_status"
+          environment_key: default
           depends_on:
             - task_key: "post_commit_status_required"
               outcome: "true"
-          job_cluster_key: "marvel-characters-cluster"
           spark_python_task:
             python_file: "scripts/04.post_commit_status.py"
             parameters:
@@ -139,61 +130,51 @@ resources:
               - "{{job.run_id}}"
               - "--job_id"
               - "{{job.id}}"
-              - "--git_sha" 
+              - "--git_sha"
               - "${var.git_sha}"
               - "--repo"
               - "${var.repo}"
               - "--org"
               - "${var.org}"
-          libraries:
-            - whl: ./dist/*.whl
 
 targets:
   dev:
-    cluster_id: 0513-112814-kzixtb9s #replace with your own!
     default: true
     mode: development
     workspace:
-      host: https://dbc-c2e8445d-159d.cloud.databricks.com
+      host: https://dbc-fdc56a8c-918a.cloud.databricks.com/
+      profile: free-edition
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.target}/${bundle.name}
     variables:
       schedule_pause_status: PAUSED
-      is_test: 0
-      env: dev
-    artifacts:
-      default:
-        type: whl
-        build: uv build
-        path: .
-        dynamic_version: True
 
   test:
     presets:
       name_prefix: 'test_'
     workspace:
-      host: https://dbc-c2e8445d-159d.cloud.databricks.com
+      host: https://dbc-fdc56a8c-918a.cloud.databricks.com/
+      profile: free-edition
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
     variables:
       schedule_pause_status: PAUSED
-      is_test: 1
-      env: dev
 
   acc:
     presets:
       name_prefix: 'acc_'
     workspace:
-      host: https://dbc-c2e8445d-159d.cloud.databricks.com
+      host: https://dbc-fdc56a8c-918a.cloud.databricks.com/
+      profile: free-edition
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
     variables:
       schedule_pause_status: PAUSED
       is_test: 1
       env: acc
 
-
   prd:
     mode: production
     workspace:
-      host: https://dbc-c2e8445d-159d.cloud.databricks.com
+      host: https://dbc-fdc56a8c-918a.cloud.databricks.com/
+      profile: free-edition
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
     variables:
       schedule_pause_status: PAUSED # normally UNPAUSED

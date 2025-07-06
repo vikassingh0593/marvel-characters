@@ -1,6 +1,0 @@
-resources:
-  apps:
-    inference_app:
-      name: "inference-app"
-      source_code_path: ../app
-      description: "A Streamlit app for ML inference on Databricks"

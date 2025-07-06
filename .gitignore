@@ -97,5 +97,4 @@ mlruns/
 
 # Environment variables
 .env
-.env.*
 logs*

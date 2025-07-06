@@ -16,12 +16,8 @@ import pandas as pd
 
 from marvel_characters.config import ProjectConfig
 from marvel_characters.data_processor import DataProcessor
-from marvelous.logging import setup_logging
-from marvelous.timer import Timer
 
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
-
-setup_logging(log_file="logs/marvelous-marvel-1.log")
 
 logger.info("Configuration loaded:")
 logger.info(yaml.dump(config, default_flow_style=False))
@@ -31,7 +27,7 @@ logger.info(yaml.dump(config, default_flow_style=False))
 # Load the Marvel characters dataset
 spark = SparkSession.builder.getOrCreate()
 
-filepath = "../data/marvel_characters.csv"
+filepath = "../data/marvel_characters_dataset.csv"
 
 # Load the data
 df = pd.read_csv(filepath)
@@ -44,14 +40,13 @@ logger.info(df[config.target].value_counts())
 
 # COMMAND ----------
 # Load the Marvel characters dataset
-with Timer() as preprocess_timer:
-    # Initialize DataProcessor
-    data_processor = DataProcessor(df, config, spark)
 
-    # Preprocess the data
-    data_processor.preprocess()
+data_processor = DataProcessor(df, config, spark)
 
-logger.info(f"Data preprocessing: {preprocess_timer}")
+# Preprocess the data
+data_processor.preprocess()
+
+logger.info(f"Data preprocessing completed.")
 
 # COMMAND ----------
 

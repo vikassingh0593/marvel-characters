@@ -25,7 +25,7 @@ test_data = {
     "Speed": 67,
     "Durability": 74,
     "Power": 60,
-    "Combat": 85
+    "Combat": 85,
 }
 pandas_df = pd.DataFrame([test_data])
 
