@@ -5,9 +5,8 @@
 # MAGIC %restart_python
 
 # COMMAND ----------
-import os
 import time
-
+import os
 import requests
 from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
@@ -15,13 +14,11 @@ from mlflow import mlflow
 
 from marvel_characters.config import ProjectConfig
 from marvel_characters.serving.model_serving import ModelServing
+from marvel_characters.utils import is_databricks
 
+# COMMAND ----------
 # spark session
-
 spark = SparkSession.builder.getOrCreate()
-
-def is_databricks():
-    return "DATABRICKS_RUNTIME_VERSION" in os.environ
 
 if is_databricks():
     from pyspark.dbutils import DBUtils
@@ -44,9 +41,9 @@ catalog_name = config.catalog_name
 schema_name = config.schema_name
 
 # COMMAND ----------
-# Initialize feature store manager
+# Initialize model serving
 model_serving = ModelServing(
-    model_name=f"{catalog_name}.{schema_name}.marvel_character_model_custom", endpoint_name="marvel-characters-model-serving"
+    model_name=f"{catalog_name}.{schema_name}.marvel_character_model_custom", endpoint_name="marvel-character-model-serving"
 )
 
 # COMMAND ----------
@@ -67,6 +64,7 @@ required_columns = [
     "Origin",
     "Creators",
 ]
+
 
 # Sample 1000 records from the training set
 test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_set").toPandas()
@@ -96,8 +94,17 @@ def call_endpoint(record):
     """
     Calls the model serving endpoint with a given input record.
     """
-    serving_endpoint = f"https://{os.environ['DBR_HOST']}/serving-endpoints/marvel-characters-model-serving/invocations"
-
+    # Ensure the host URL is complete with domain suffix (.com, etc.)
+    host = os.environ['DBR_HOST']
+    # If the host doesn't contain a dot, it's likely missing the domain suffix
+    if '.' not in host:
+        print(f"Warning: DBR_HOST '{host}' may be incomplete. Adding '.com' domain suffix.")
+        host = f"{host}.com"
+        
+    serving_endpoint = f"https://{host}/serving-endpoints/marvel-character-model-serving/invocations"
+    
+    print(f"Calling endpoint: {serving_endpoint}")
+    
     response = requests.post(
         serving_endpoint,
         headers={"Authorization": f"Bearer {os.environ['DBR_TOKEN']}"},

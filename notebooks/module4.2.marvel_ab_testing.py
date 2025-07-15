@@ -24,18 +24,27 @@ from pyspark.sql import SparkSession
 
 from marvel_characters.config import ProjectConfig, Tags
 from marvel_characters.models.basic_model import BasicModel
+from marvel_characters.utils import is_databricks
 
 # COMMAND ----------
 
 # Set up Databricks or local MLflow tracking
-def is_databricks():
-    return "DATABRICKS_RUNTIME_VERSION" in os.environ
 
 if not is_databricks():
     load_dotenv()
-    profile = os.environ.get("PROFILE", "DEFAULT")
+    # DBR_TOKEN and DBR_HOST should be set in your .env file
+    os.environ.get("DBR_TOKEN"), "DBR_TOKEN must be set in your environment or .env file."
+    os.environ.get("DBR_HOST"), "DBR_HOST must be set in your environment or .env file."
+    profile = os.environ["PROFILE"]
     mlflow.set_tracking_uri(f"databricks://{profile}")
     mlflow.set_registry_uri(f"databricks-uc://{profile}")
+
+else:
+    from pyspark.dbutils import DBUtils
+    dbutils = DBUtils(spark)
+    os.environ["DBR_TOKEN"] = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
+    os.environ["DBR_HOST"] = spark.conf.get("spark.databricks.workspaceUrl")
+
 
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 spark = SparkSession.builder.getOrCreate()
@@ -81,13 +90,13 @@ class MarvelModelWrapper(mlflow.pyfunc.PythonModel):
 
     def predict(self, context, model_input):
         # Use PageID (or another unique identifier) for splitting
-        page_id = str(model_input["PageID"].values[0])
+        page_id = str(model_input["Id"].values[0])
         hashed_id = hashlib.md5(page_id.encode(encoding="UTF-8")).hexdigest()
         if int(hashed_id, 16) % 2:
-            predictions = self.model_a.predict(model_input.drop(["PageID"], axis=1))
+            predictions = self.model_a.predict(model_input.drop(["Id"], axis=1))
             return {"Prediction": predictions[0], "model": "Model A"}
         else:
-            predictions = self.model_b.predict(model_input.drop(["PageID"], axis=1))
+            predictions = self.model_b.predict(model_input.drop(["Id"], axis=1))
             return {"Prediction": predictions[0], "model": "Model B"}
 
 # COMMAND ----------
@@ -95,8 +104,8 @@ class MarvelModelWrapper(mlflow.pyfunc.PythonModel):
 train_set_spark = spark.table(f"{catalog_name}.{schema_name}.train_set")
 train_set = train_set_spark.toPandas()
 test_set = spark.table(f"{catalog_name}.{schema_name}.test_set").toPandas()
-X_train = train_set[config.num_features + config.cat_features + ["PageID"]]
-X_test = test_set[config.num_features + config.cat_features + ["PageID"]]
+X_train = train_set[config.num_features + config.cat_features + ["Id"]]
+X_test = test_set[config.num_features + config.cat_features + ["Id"]]
 
 # COMMAND ----------
 mlflow.set_experiment(experiment_name="/Shared/marvel-characters-ab-testing")
@@ -126,9 +135,6 @@ workspace = WorkspaceClient()
 endpoint_name = "marvel-characters-ab-testing"
 entity_version = model_version.version
 
-os.environ["DBR_TOKEN"] = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
-os.environ["DBR_HOST"] = spark.conf.get("spark.databricks.workspaceUrl")
-
 served_entities = [
     ServedEntityInput(
         entity_name=model_name,
@@ -147,7 +153,7 @@ workspace.serving_endpoints.create(
 
 # COMMAND ----------
 # Create sample request body
-sampled_records = train_set[config.num_features + config.cat_features + ["PageID"]].sample(n=1000, replace=True).to_dict(orient="records")
+sampled_records = train_set[config.num_features + config.cat_features + ["Id"]].sample(n=1000, replace=True).to_dict(orient="records")
 dataframe_records = [[record] for record in sampled_records]
 
 print(train_set.dtypes)
