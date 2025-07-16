@@ -21,8 +21,6 @@ On Databricks, it works if you use Course cluster policy: it contains init scrip
 To create a new environment and create a lockfile, run:
 
 ```
-uv venv -p 3.11 .venv
-source .venv/bin/activate
 uv sync --extra dev
 ```
 
