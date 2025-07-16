@@ -1,5 +1,5 @@
 <h1 align="center">
-Marvelous MLOps End-to-end MLOps with Databricks course
+Marvelous MLOps Free End-to-end MLOps with Databricks course
 
 ## Set up your environment
 In this course, we use Databricks serverless [version 3](https://docs.databricks.com/aws/en/release-notes/serverless/environment-version/three)
