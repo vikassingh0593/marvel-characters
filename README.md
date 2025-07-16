@@ -6,18 +6,6 @@ In this course, we use Databricks serverless [version 3](https://docs.databricks
 
 In our examples, we use UV. Check out the documentation on how to install it: https://docs.astral.sh/uv/getting-started/installation/
 
-### 🔐 Accessing private GitHub dependencies
-
-This project depends on a private repository called `marvelous`.
-The source is configured in `pyproject.toml` in project dependencies:
-
-```
-"marvelous@git+https://github.com/end-to-end-mlops-databricks-3/marvelous@0.1.0"
-```
-
-This will work locally once you authernticate to GitHub using https, and your credentials are stored in the keychain.
-On Databricks, it works if you use Course cluster policy: it contains init script (init_script.sh) and the required environment variable.
-
 To create a new environment and create a lockfile, run:
 
 ```
