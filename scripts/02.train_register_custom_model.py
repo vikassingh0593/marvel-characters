@@ -6,12 +6,38 @@ from pyspark.dbutils import DBUtils
 from pyspark.sql import SparkSession
 
 from marvel_characters.config import ProjectConfig, Tags
-from marvel_characters.models.custom_model import CustomModel
 
-args = create_parser()
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--root_path",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
 
+parser.add_argument(
+    "--env",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
+parser.add_argument("--git_sha", type=str, required=True, help="git sha of the commit")
+parser.add_argument("--job_run_id", type=str, required=True, help="run id of the run of the databricks job")
+parser.add_argument("--branch", type=str, required=True, help="branch of the project")
+
+parser.add_argument(
+    "--is_test",
+    action="store",
+    default=0,
+    type=int,
+    required=True,
+)
+
+args = parser.parse_args()
 root_path = args.root_path
-config_path = f"{root_path}/files/project_config.yml"
+config_path = f"{root_path}/files/project_config_marvel.yml"
 
 config = ProjectConfig.from_yaml(config_path=config_path, env=args.env)
 spark = SparkSession.builder.getOrCreate()

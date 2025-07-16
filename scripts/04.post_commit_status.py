@@ -1,11 +1,18 @@
-from marvelous.common import get_dbr_host
+
 import argparse
 import os
 import requests
 from loguru import logger
-from marvelous.common import create_parser
 
-args = create_parser()
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--org", type=str, required=True, help="GitHub organization")
+parser.add_argument("--repo", type=str, required=True, help="GitHub repository")
+parser.add_argument("--git_sha", type=str, required=True, help="git sha of the commit")
+parser.add_argument("--job_run_id", type=str, required=True, help="run id of the run of the databricks job")
+parser.add_argument("--job_id", type=str, required=True, help="id of the job")
+
+args = parser.parse_args()
 
 host = get_dbr_host()
 

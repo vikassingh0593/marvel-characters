@@ -1,19 +1,41 @@
+import argparse
 import yaml
 from loguru import logger
 from pyspark.sql import SparkSession
 
 from marvel_characters.config import ProjectConfig
 from marvel_characters.data_processor import DataProcessor
-from marvelous.common import create_parser
 
-# If you have Marvel-specific synthetic/test data generation functions, import them here:
-# from marvel_characters.data_processor import generate_synthetic_data, generate_test_data
-from marvelous.common import create_parser
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--root_path",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
 
-args = create_parser()
+parser.add_argument(
+    "--env",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
 
+parser.add_argument(
+    "--is_test",
+    action="store",
+    default=0,
+    type=int,
+    required=True,
+)
+
+args = parser.parse_args()
 root_path = args.root_path
-config_path = f"{root_path}/files/project_config.yml"
+config_path = f"{root_path}/files/project_config_marvel.yml"
+
+
 config = ProjectConfig.from_yaml(config_path=config_path, env=args.env)
 is_test = args.is_test
 

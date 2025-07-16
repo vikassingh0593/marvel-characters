@@ -7,13 +7,37 @@ from pyspark.sql import SparkSession
 from marvel_characters.config import ProjectConfig
 from marvel_characters.serving.model_serving import ModelServing
 from databricks.sdk import WorkspaceClient
-from marvelous.common import create_parser
+from marvel_characters.utils import get_dbr_host
 
-args = create_parser()
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--root_path",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
+
+parser.add_argument(
+    "--env",
+    action="store",
+    default=None,
+    type=str,
+    required=True,
+)
+
+parser.add_argument(
+    "--is_test",
+    action="store",
+    default=0,
+    type=int,
+    required=True,
+)
+
 
 root_path = args.root_path
 is_test = args.is_test
-config_path = f"{root_path}/files/project_config.yml"
+config_path = f"{root_path}/files/project_config_marvel.yml"
 
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
