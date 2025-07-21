@@ -1,18 +1,18 @@
 # Databricks notebook source
 
-# % pip install -e ..
-# %restart_python
+# MAGIC %pip install -e ..
+# MAGIC %restart_python
 
+# COMMAND ----------
 # from pathlib import Path
 # import sys
 # sys.path.append(str(Path.cwd().parent / 'src'))
 
 # COMMAND ----------
-from loguru import logger
-import yaml
-import sys
-from pyspark.sql import SparkSession
 import pandas as pd
+import yaml
+from loguru import logger
+from pyspark.sql import SparkSession
 
 from marvel_characters.config import ProjectConfig
 from marvel_characters.data_processor import DataProcessor

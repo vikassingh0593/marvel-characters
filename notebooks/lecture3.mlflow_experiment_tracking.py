@@ -1,12 +1,14 @@
 # Databricks notebook source
 import json
-import mlflow
 import os
 
+import mlflow
 from dotenv import load_dotenv
 
+
 # Set up Databricks or local MLflow tracking
-def is_databricks():
+def is_databricks() -> bool:
+    """Check if the code is running in a Databricks environment."""
     return "DATABRICKS_RUNTIME_VERSION" in os.environ
 
 # COMMAND ----------
@@ -17,6 +19,7 @@ if not is_databricks():
     load_dotenv()
     profile = os.environ.get("PROFILE", "DEFAULT")
     mlflow.set_tracking_uri(f"databricks://{profile}")
+    mlflow.set_registry_uri(f"databricks-uc://{profile}")
 
 mlflow.get_tracking_uri()
 # COMMAND ----------
@@ -56,8 +59,7 @@ print(mlflow.active_run() is None)
 # start a run
 with mlflow.start_run(
     run_name="marvel-demo-run",
-    tags={"git_sha": "1234567890abcd",
-          "branch": "week2"},
+    tags={"git_sha": "1234567890abcd"},
     description="marvel character prediction demo run",
 ) as run:
     run_id = run.info.run_id
@@ -102,8 +104,7 @@ mlflow.end_run()
 # COMMAND ----------
 # start another run and log other things
 mlflow.start_run(run_name="marvel-demo-run-extra",
-                 tags={"git_sha": "1234567890abcd",
-                       "branch": "week2"},
+                 tags={"git_sha": "1234567890abcd"},
                        description="marvel demo run with extra artifacts",)
 mlflow.log_metric(key="metric3", value=3.0)
 # dynamically log metric (trainings epochs)
@@ -136,6 +137,7 @@ mlflow.end_run()
 # COMMAND ----------
 # other ways
 from time import time
+
 time_hour_ago = int(time() - 3600) * 1000
 
 runs = mlflow.search_runs(
@@ -171,4 +173,6 @@ with mlflow.start_run(run_name="marvel_top_level_run") as run:
         with mlflow.start_run(run_name=f"marvel_subrun_{str(i)}", nested=True) as subrun:
             mlflow.log_metrics({"m1": 5.1+i,
                                 "m2": 2*i,
-                                "m3": 3+1.5*i}) 
+                                "m3": 3+1.5*i})
+
+# COMMAND ----------

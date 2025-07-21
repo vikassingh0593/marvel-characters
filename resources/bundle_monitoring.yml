@@ -1,4 +1,3 @@
-
 resources:
   jobs:
     marvel-characters-monitor-update:
@@ -21,7 +20,7 @@ resources:
         - task_key: "refresh_monitor_table"
           environment_key: monitor-env
           spark_python_task:
-            python_file: "scripts/05.refresh_monitor.py"
+            python_file: "../scripts/refresh_monitor.py"
             parameters:
               - "--root_path"
               - ${workspace.root_path}

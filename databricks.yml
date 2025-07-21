@@ -1,8 +1,8 @@
 bundle:
   name: marvel-characters
 
-# include:
-#   - bundle_monitoring.yml
+include:
+  - resources/model_deployment.yml
 
 artifacts:
   default:
@@ -14,143 +14,22 @@ variables:
   git_sha:
     description: git_sha
     default: abcd
-  repo:
-    description: repo name
-    default: repo
-  org:
-    description: GitHub organization
-    default: end-to-end-mlops-databricks-3
   branch:
     description: branch
     default: main
   schedule_pause_status:
     description: schedule pause status
     default: PAUSED
-  is_test:
-    default: 0
-  env:
-    description: environment
-    default: dev
 
-resources:
-  jobs:
-    deployment:
-      name: ${bundle.name}-workflow
-      schedule:
-        quartz_cron_expression: "0 0 6 ? * MON"
-        timezone_id: "Europe/Amsterdam"
-        pause_status: ${var.schedule_pause_status}
-      tags:
-        project_name: "marvel-characters"
-
-      environments:
-        - environment_key: default
-          spec:
-            client: "3"
-            dependencies:
-              - ./dist/*.whl
-
-      tasks:
-        - task_key: "preprocessing"
-          environment_key: default
-          spark_python_task:
-            python_file: "scripts/01.process_data.py"
-            parameters:
-              - "--root_path"
-              - "${workspace.root_path}"
-              - "--env"
-              - "${var.env}"
-              - "--is_test"
-              - "${var.is_test}"
-
-        - task_key: "train_model"
-          environment_key: default
-          depends_on:
-            - task_key: "preprocessing"
-          spark_python_task:
-            python_file: "scripts/02.train_register_custom_model.py"
-            parameters:
-              - "--root_path"
-              - "${workspace.root_path}"
-              - "--env"
-              - "${var.env}"
-              - "--git_sha"
-              - "${var.git_sha}"
-              - "--job_run_id"
-              - "{{job.run_id}}"
-              - "--branch"
-              - "${var.branch}"
-              - "--is_test"
-              - "${var.is_test}"
-
-        - task_key: model_updated
-          condition_task:
-            op: "EQUAL_TO"
-            left: "{{tasks.train_model.values.model_updated}}"
-            right: "1"
-          depends_on:
-            - task_key: "train_model"
-
-        - task_key: "deploy_model"
-          environment_key: default
-          depends_on:
-            - task_key: "model_updated"
-              outcome: "true"
-          spark_python_task:
-            python_file: "scripts/03.deploy_model.py"
-            parameters:
-              - "--root_path"
-              - "${workspace.root_path}"
-              - "--env"
-              - "${var.env}"
-              - "--is_test"
-              - "${var.is_test}"
-
-        - task_key: post_commit_status_required
-          condition_task:
-            op: "EQUAL_TO"
-            left: "${var.is_test}"
-            right: "1"
-          depends_on:
-            - task_key: "deploy_model"
-
-        - task_key: "post_commit_status"
-          environment_key: default
-          depends_on:
-            - task_key: "post_commit_status_required"
-              outcome: "true"
-          spark_python_task:
-            python_file: "scripts/04.post_commit_status.py"
-            parameters:
-              - "--job_run_id"
-              - "{{job.run_id}}"
-              - "--job_id"
-              - "{{job.id}}"
-              - "--git_sha"
-              - "${var.git_sha}"
-              - "--repo"
-              - "${var.repo}"
-              - "--org"
-              - "${var.org}"
 
 targets:
   dev:
     default: true
     mode: development
     workspace:
-      host: https://dbc-fdc56a8c-918a.cloud.databricks.com/
-      profile: marvelous
+      host: https://dbc-fdc56a8c-918a.cloud.databricks.com
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.target}/${bundle.name}
-    variables:
-      schedule_pause_status: PAUSED
-
-  test:
-    presets:
-      name_prefix: 'test_'
-    workspace:
-      host: https://dbc-fdc56a8c-918a.cloud.databricks.com/
       profile: marvelous
-      root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
     variables:
       schedule_pause_status: PAUSED
 
@@ -158,21 +37,17 @@ targets:
     presets:
       name_prefix: 'acc_'
     workspace:
-      host: https://dbc-fdc56a8c-918a.cloud.databricks.com/
-      profile: marvelous
+      host: https://dbc-fdc56a8c-918a.cloud.databricks.com
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
+      profile: marvelous
     variables:
       schedule_pause_status: PAUSED
-      is_test: 1
-      env: acc
 
   prd:
     mode: production
     workspace:
-      host: https://dbc-fdc56a8c-918a.cloud.databricks.com/
-      profile: marvelous
+      host: https:/dbc-fdc56a8c-918a.cloud.databricks.com
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
+      profile: marvelous
     variables:
       schedule_pause_status: PAUSED # normally UNPAUSED
-      is_test: 0
-      env: prd

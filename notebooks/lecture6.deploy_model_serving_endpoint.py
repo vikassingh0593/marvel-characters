@@ -62,15 +62,19 @@ required_columns = [
     "Marital_Status",
     "Teams",
     "Origin",
-    "Creators",
-]
+    "Magic",
+    "Mutant"]
 
 
 # Sample 1000 records from the training set
 test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_set").toPandas()
 
-# Sample 100 records from the training set
-sampled_records = test_set[required_columns].sample(n=18000, replace=True).to_dict(orient="records")
+# Sample records from the training set
+sampled_records = test_set[required_columns].sample(n=18000, replace=True)
+
+# Replace NaN values with None (which will be serialized as null in JSON)
+import numpy as np
+sampled_records = sampled_records.replace({np.nan: None}).to_dict(orient="records")
 dataframe_records = [[record] for record in sampled_records]
 
 # COMMAND ----------
@@ -87,7 +91,8 @@ Each dataframe record in the request body should be list of json with columns lo
   'Marital_Status': 'Single',
   'Teams': 'Avengers',
   'Origin': 'Human',
-  'Creators': 'Stan Lee'}]
+  'Magic': 1,
+  'Mutant': 1}]
 """
 
 def call_endpoint(record):
