@@ -21,11 +21,3 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix, --show-fixes]
       - id: ruff-format
-  - repo: local
-    hooks:
-      - id: pytest
-        name: pytest
-        entry: python -m pytest
-        language: system
-        pass_filenames: false
-        always_run: true
