@@ -29,6 +29,7 @@ from marvel_characters.utils import is_databricks
 # COMMAND ----------
 
 # Set up Databricks or local MLflow tracking
+spark = SparkSession.builder.getOrCreate()
 
 if not is_databricks():
     load_dotenv()
@@ -47,7 +48,6 @@ else:
 
 
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
-spark = SparkSession.builder.getOrCreate()
 # Define tags (customize as needed)
 tags = Tags(git_sha="dev", branch="ab-testing")
 
@@ -153,7 +153,10 @@ workspace.serving_endpoints.create(
 
 # COMMAND ----------
 # Create sample request body
-sampled_records = train_set[config.num_features + config.cat_features + ["Id"]].sample(n=1000, replace=True).to_dict(orient="records")
+sampled_records = train_set[config.num_features + config.cat_features + ["Id"]].sample(n=1000, replace=True)
+
+import numpy as np
+sampled_records = sampled_records.replace({np.nan: None}).to_dict(orient="records")
 dataframe_records = [[record] for record in sampled_records]
 
 print(train_set.dtypes)
@@ -183,3 +186,4 @@ for i in range(len(dataframe_records)):
     print(f"Response Status: {status_code}")
     print(f"Response Text: {response_text}")
     time.sleep(0.2)
+# COMMAND ----------

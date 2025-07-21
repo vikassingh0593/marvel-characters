@@ -2,6 +2,7 @@ import argparse
 import yaml
 from loguru import logger
 from pyspark.sql import SparkSession
+import pandas as pd
 
 from marvel_characters.config import ProjectConfig
 from marvel_characters.data_processor import DataProcessor
@@ -23,21 +24,11 @@ parser.add_argument(
     required=True,
 )
 
-parser.add_argument(
-    "--is_test",
-    action="store",
-    default=0,
-    type=int,
-    required=True,
-)
 
 args = parser.parse_args()
-root_path = args.root_path
-config_path = f"{root_path}/files/project_config_marvel.yml"
-
+config_path = f"{args.root_path}/files/project_config_marvel.yml"
 
 config = ProjectConfig.from_yaml(config_path=config_path, env=args.env)
-is_test = args.is_test
 
 logger.info("Configuration loaded:")
 logger.info(yaml.dump(config, default_flow_style=False))
@@ -46,17 +37,17 @@ logger.info(yaml.dump(config, default_flow_style=False))
 spark = SparkSession.builder.getOrCreate()
 
 # Example: Adjust the path and loading logic as per your Marvel dataset location
-# This assumes the Marvel dataset is stored as a Delta table in the configured catalog/schema
-marvel_table = f"{config.catalog_name}.{config.schema_name}.marvel_characters"
-df = spark.table(marvel_table).toPandas()
+filepath = f"{args.root_path}/files/data/marvel_characters_dataset.csv"
+
+# Load the data
+df = pd.read_csv(filepath)
 
 # If you have Marvel-specific synthetic/test data generation, use them here.
 # Otherwise, just use the loaded Marvel dataset as is.
-new_data = df.copy()
 logger.info("Marvel data loaded for processing.")
 
 # Initialize DataProcessor
-data_processor = DataProcessor(new_data, config, spark)
+data_processor = DataProcessor(df, config, spark)
 
 # Preprocess the data
 data_processor.preprocess()

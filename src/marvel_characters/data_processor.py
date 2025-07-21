@@ -27,46 +27,74 @@ class DataProcessor:
 
         This method handles missing values, converts data types, and performs feature engineering.
         """
-        # Rename columns if necessary
-        if "Height (m)" in self.df.columns:
-            self.df.rename(columns={"Height (m)": "Height"}, inplace=True)
-        if "Weight (kg)" in self.df.columns:
-            self.df.rename(columns={"Weight (kg)": "Weight"}, inplace=True)
-        if "Marital Status" in self.df.columns:
-            self.df.rename(columns={"Marital Status": "Marital_Status"}, inplace=True)
-
-        # Handle missing values and convert data types as needed
-        self.df["Height"] = pd.to_numeric(self.df["Height"], errors="coerce")
-        self.df["Weight"] = pd.to_numeric(self.df["Weight"], errors="coerce")
-
-        # Fill missing values with median for numeric features
-        self.df["Height"] = self.df["Height"].fillna(self.df["Height"].median())
-        self.df["Weight"] = self.df["Weight"].fillna(self.df["Weight"].median())
-
-        # Handle numeric features
-        num_features = self.config.num_features
-        for col in num_features:
-            self.df[col] = pd.to_numeric(self.df[col], errors="coerce")
-
-        # Fill missing values for categorical features
         cat_features = self.config.cat_features
-        for cat_col in cat_features:
-            if cat_col in self.df.columns:
-                self.df[cat_col] = self.df[cat_col].fillna("Unknown")
-                self.df[cat_col] = self.df[cat_col].astype("category")
-
-        # Handle target variable (Alive)
+        num_features = self.config.num_features
         target = self.config.target
-        if target in self.df.columns:
-            # Convert Alive to binary (1 for alive, 0 for dead)
-            self.df[target] = (self.df[target].astype(str).str.lower() == "alive").astype(int)
 
-        # Extract target and relevant features
-        relevant_columns = cat_features + num_features + [target] + ["PageID"]
-        # Only include columns that exist in the dataframe
-        existing_columns = [col for col in relevant_columns if col in self.df.columns]
-        self.df = self.df[existing_columns]
+        self.df.rename(columns={"Height (m)": "Height"}, inplace=True)
+        self.df.rename(columns={"Weight (kg)": "Weight"}, inplace=True)
 
+        # Universe
+        self.df["Universe"] = self.df["Universe"].fillna("Unknown")
+        counts = self.df["Universe"].value_counts()
+        small_universes = counts[counts < 50].index
+        self.df["Universe"] = self.df["Universe"].replace(small_universes, "Other")
+
+        # Teams
+        self.df["Teams"] = self.df["Teams"].notna().astype("int")
+
+        # Origin
+        self.df["Origin"] = self.df["Origin"].fillna("Unknown")
+
+        # Identity
+        self.df["Identity"] = self.df["Identity"].fillna("Unknown")
+        self.df = self.df[self.df["Identity"].isin(["Public", "Secret", "Unknown"])]
+
+        # Gender
+        self.df["Gender"] = self.df["Gender"].fillna("Unknown")
+        self.df["Gender"] = self.df["Gender"].where(self.df["Gender"].isin(["Male", "Female"]), other="Other")
+
+        # Marital status
+        self.df.rename(columns={"Marital Status": "Marital_Status"}, inplace=True)
+        self.df["Marital_Status"] = self.df["Marital_Status"].fillna("Unknown")
+        self.df["Marital_Status"] = self.df["Marital_Status"].replace("Widow", "Widowed")
+        self.df = self.df[self.df["Marital_Status"].isin(["Single", "Married", "Widowed", "Engaged", "Unknown"])]
+
+        # Magic
+        self.df["Magic"] = self.df["Origin"].str.lower().apply(lambda x: int("magic" in x))
+
+        # Mutant
+        self.df["Mutant"] = self.df["Origin"].str.lower().apply(lambda x: int("mutate" in x or "mutant" in x))
+
+        # Normalize origin
+        def normalize_origin(x: str) -> str:
+            x_lower = str(x).lower()
+            if "human" in x_lower:
+                return "Human"
+            elif "mutate" in x_lower or "mutant" in x_lower:
+                return "Mutant"
+            elif "asgardian" in x_lower:
+                return "Asgardian"
+            elif "alien" in x_lower:
+                return "Alien"
+            elif "symbiote" in x_lower:
+                return "Symbiote"
+            elif "robot" in x_lower:
+                return "Robot"
+            elif "cosmic being" in x_lower:
+                return "Cosmic Being"
+            else:
+                return "Other"
+
+        self.df["Origin"] = self.df["Origin"].apply(normalize_origin)
+
+        self.df = self.df[self.df["Alive"].isin(["Alive", "Dead"])]
+        self.df["Alive"] = (self.df["Alive"] == "Alive").astype(int)
+
+        self.df = self.df[num_features + cat_features + [target] + ["PageID"]]
+
+        for col in cat_features:
+            self.df[col] = self.df[col].astype("category")
         # Rename PageID to Id for consistency
         if "PageID" in self.df.columns:
             self.df = self.df.rename(columns={"PageID": "Id"})

@@ -10,18 +10,16 @@ catalog_name, schema_name → Database schema names for Databricks tables.
 """
 
 import mlflow
-import numpy as np
 import pandas as pd
+from delta.tables import DeltaTable
 from lightgbm import LGBMClassifier
 from loguru import logger
 from mlflow import MlflowClient
-from mlflow.data.dataset_source import DatasetSource
 from mlflow.models import infer_signature
 from pyspark.sql import SparkSession
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
 
 from marvel_characters.config import ProjectConfig, Tags
 
@@ -51,7 +49,7 @@ class BasicModel:
         self.schema_name = self.config.schema_name
         self.experiment_name = self.config.experiment_name_basic
         self.model_name = f"{self.catalog_name}.{self.schema_name}.marvel_character_model_basic"
-        self.tags = tags.dict()
+        self.tags = tags.to_dict()
 
     def load_data(self) -> None:
         """Load training and testing data from Delta tables.
@@ -61,13 +59,19 @@ class BasicModel:
         logger.info("🔄 Loading data from Databricks tables...")
         self.train_set_spark = self.spark.table(f"{self.catalog_name}.{self.schema_name}.train_set")
         self.train_set = self.train_set_spark.toPandas()
-        self.test_set = self.spark.table(f"{self.catalog_name}.{self.schema_name}.test_set").toPandas()
-        self.data_version = "0"  # describe history -> retrieve
+        self.test_set_spark = self.spark.table(f"{self.catalog_name}.{self.schema_name}.test_set")
+        self.test_set = self.test_set_spark.toPandas()
 
         self.X_train = self.train_set[self.num_features + self.cat_features]
         self.y_train = self.train_set[self.target]
         self.X_test = self.test_set[self.num_features + self.cat_features]
         self.y_test = self.test_set[self.target]
+        self.eval_data = self.test_set[self.num_features + self.cat_features + [self.target]]
+
+        train_delta_table = DeltaTable.forName(self.spark, f"{self.catalog_name}.{self.schema_name}.train_set")
+        self.train_data_version = str(train_delta_table.history().select("version").first()[0])
+        test_delta_table = DeltaTable.forName(self.spark, f"{self.catalog_name}.{self.schema_name}.test_set")
+        self.test_data_version = str(test_delta_table.history().select("version").first()[0])
         logger.info("✅ Data successfully loaded.")
 
     def prepare_features(self) -> None:
@@ -77,12 +81,45 @@ class BasicModel:
         features. Constructs a pipeline combining preprocessing and LightGBM classification model.
         """
         logger.info("🔄 Defining preprocessing pipeline...")
-        self.preprocessor = ColumnTransformer(
-            transformers=[("cat", OneHotEncoder(handle_unknown="ignore"), self.cat_features)], remainder="passthrough"
-        )
 
+        class CatToIntTransformer(BaseEstimator, TransformerMixin):
+            """Transformer that encodes categorical columns as integer codes for LightGBM.
+
+            Unknown categories at transform time are encoded as -1.
+            """
+
+            def __init__(self, cat_features: list[str]) -> None:
+                """Initialize the transformer with categorical feature names."""
+                self.cat_features = cat_features
+                self.cat_maps_ = {}
+
+            def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> None:
+                """Fit the transformer to the DataFrame X."""
+                self.fit_transform(X)
+                return self
+
+            def fit_transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+                """Fit and transform the DataFrame X."""
+                X = X.copy()
+                for col in self.cat_features:
+                    c = pd.Categorical(X[col])
+                    # Build mapping: {category: code}
+                    self.cat_maps_[col] = dict(zip(c.categories, range(len(c.categories)), strict=False))
+                    X[col] = X[col].map(lambda val, col=col: self.cat_maps_[col].get(val, -1)).astype("category")
+                return X
+
+            def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+                """Transform the DataFrame X by encoding categorical features as integers."""
+                X = X.copy()
+                for col in self.cat_features:
+                    X[col] = X[col].map(lambda val, col=col: self.cat_maps_[col].get(val, -1)).astype("category")
+                return X
+
+        preprocessor = ColumnTransformer(
+            transformers=[("cat", CatToIntTransformer(self.cat_features), self.cat_features)], remainder="passthrough"
+        )
         self.pipeline = Pipeline(
-            steps=[("preprocessor", self.preprocessor), ("classifier", LGBMClassifier(**self.parameters))]
+            steps=[("preprocessor", preprocessor), ("regressor", LGBMClassifier(**self.parameters))]
         )
         logger.info("✅ Preprocessing pipeline defined.")
 
@@ -97,39 +134,61 @@ class BasicModel:
         with mlflow.start_run(tags=self.tags) as run:
             self.run_id = run.info.run_id
 
-            y_pred = self.pipeline.predict(self.X_test)
-            y_pred_proba = self.pipeline.predict_proba(self.X_test)
-
-            # Evaluate metrics
-            accuracy = accuracy_score(self.y_test, y_pred)
-            precision = precision_score(self.y_test, y_pred, average="weighted")
-            recall = recall_score(self.y_test, y_pred, average="weighted")
-            f1 = f1_score(self.y_test, y_pred, average="weighted")
-
-            logger.info(f"📊 Accuracy: {accuracy}")
-            logger.info(f"📊 Precision: {precision}")
-            logger.info(f"📊 Recall: {recall}")
-            logger.info(f"📊 F1 Score: {f1}")
-
-            # Log parameters and metrics
-            mlflow.log_param("model_type", "LightGBM Classifier with preprocessing")
-            mlflow.log_params(self.parameters)
-            mlflow.log_metric("accuracy", accuracy)
-            mlflow.log_metric("precision", precision)
-            mlflow.log_metric("recall", recall)
-            mlflow.log_metric("f1_score", f1)
-
-            # Log the model
-            signature = infer_signature(model_input=self.X_train, model_output=y_pred_proba)
-            dataset = mlflow.data.from_spark(
+            signature = infer_signature(model_input=self.X_train, model_output=self.pipeline.predict(self.X_train))
+            train_dataset = mlflow.data.from_spark(
                 self.train_set_spark,
                 table_name=f"{self.catalog_name}.{self.schema_name}.train_set",
-                version=self.data_version,
+                version=self.train_data_version,
             )
-            mlflow.log_input(dataset, context="training")
-            mlflow.sklearn.log_model(
-                sk_model=self.pipeline, artifact_path="lightgbm-pipeline-model", signature=signature
+            mlflow.log_input(train_dataset, context="training")
+            test_dataset = mlflow.data.from_spark(
+                self.test_set_spark,
+                table_name=f"{self.catalog_name}.{self.schema_name}.test_set",
+                version=self.test_data_version,
             )
+            mlflow.log_input(test_dataset, context="training")
+            self.model_info = mlflow.sklearn.log_model(
+                sk_model=self.pipeline,
+                artifact_path="lightgbm-pipeline-model",
+                signature=signature,
+                input_example=self.X_test[0:1],
+            )
+            eval_data = self.X_test.copy()
+            eval_data[self.config.target] = self.y_test
+
+            result = mlflow.models.evaluate(
+                self.model_info.model_uri,
+                eval_data,
+                targets=self.config.target,
+                model_type="classifier",
+                evaluators=["default"],
+            )
+            self.metrics = result.metrics
+
+    def model_improved(self) -> bool:
+        """Evaluate the model performance on the test set.
+
+        Compares the current model with the latest registered model using F1-score.
+        :return: True if the current model performs better, False otherwise.
+        """
+        client = MlflowClient()
+        latest_model_version = client.get_model_version_by_alias(name=self.model_name, alias="latest-model")
+        latest_model_uri = f"models:/{latest_model_version.model_id}"
+
+        result = mlflow.models.evaluate(
+            latest_model_uri,
+            self.eval_data,
+            targets=self.config.target,
+            model_type="classifier",
+            evaluators=["default"],
+        )
+        metrics_old = result.metrics
+        if self.metrics["f1_score"] >= metrics_old["f1_score"]:
+            logger.info("Current model performs better. Returning True.")
+            return True
+        else:
+            logger.info("Current model does not improve over latest. Returning False.")
+            return False
 
     def register_model(self) -> None:
         """Register model in Unity Catalog."""
@@ -149,46 +208,4 @@ class BasicModel:
             alias="latest-model",
             version=latest_version,
         )
-
-    def retrieve_current_run_dataset(self) -> DatasetSource:
-        """Retrieve MLflow run dataset.
-
-        :return: Loaded dataset source
-        """
-        run = mlflow.get_run(self.run_id)
-        dataset_info = run.inputs.dataset_inputs[0].dataset
-        dataset_source = mlflow.data.get_source(dataset_info)
-        logger.info("✅ Dataset source loaded.")
-        return dataset_source.load()
-
-    def retrieve_current_run_metadata(self) -> tuple[dict, dict]:
-        """Retrieve MLflow run metadata.
-
-        :return: Tuple containing metrics and parameters dictionaries
-        """
-        run = mlflow.get_run(self.run_id)
-        metrics = run.data.to_dictionary()["metrics"]
-        params = run.data.to_dictionary()["params"]
-        logger.info("✅ Dataset metadata loaded.")
-        return metrics, params
-
-    def load_latest_model_and_predict(self, input_data: pd.DataFrame) -> np.ndarray:
-        """Load the latest model from MLflow (alias=latest-model) and make predictions.
-
-        Alias latest is not allowed -> we use latest-model instead as an alternative.
-
-        :param input_data: Pandas DataFrame containing input features for prediction.
-        :return: Numpy array with predictions.
-        """
-        logger.info("🔄 Loading model from MLflow alias 'latest-model'...")
-
-        model_uri = f"models:/{self.model_name}@latest-model"
-        model = mlflow.sklearn.load_model(model_uri)
-
-        logger.info("✅ Model successfully loaded.")
-
-        # Make predictions
-        predictions = model.predict(input_data)
-
-        # Return predictions
-        return predictions
+        return latest_version
