@@ -3,7 +3,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+.databricks/*
+.ruff_cache/*
 # C extensions
 *.so
 
