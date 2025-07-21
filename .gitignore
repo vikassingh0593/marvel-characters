@@ -64,7 +64,6 @@ ipython_config.py
 # Data, models, outputs
 *.h5
 *.hdf5
-*.csv
 *.tsv
 *.parquet
 *.pkl
