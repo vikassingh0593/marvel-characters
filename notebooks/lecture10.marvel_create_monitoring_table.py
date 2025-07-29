@@ -55,8 +55,9 @@ required_columns = [
     "Marital_Status",
     "Teams",
     "Origin",
-    "Creators",
-]
+    "Magic",
+    "Mutant"]
+
 
 # COMMAND ----------
 
@@ -76,9 +77,7 @@ def send_request_https(dataframe_record):
 def send_request_workspace(dataframe_record):
     """
     Sends a request to the model serving endpoint using workspace client.
-    """
-    serving_endpoint = f"https://{os.environ["DBR_HOST"]}/serving-endpoints/marvel-characters-model-serving/invocations"
-    
+    """    
     response = workspace.serving_endpoints.query(
         name="marvel-characters-model-serving",
         dataframe_records=dataframe_record

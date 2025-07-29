@@ -2,7 +2,7 @@ bundle:
   name: marvel-characters
 
 include:
-  - resources/model_deployment.yml
+  - resources/*
 
 artifacts:
   default:

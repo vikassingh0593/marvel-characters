@@ -18,8 +18,7 @@ def create_or_refresh_monitoring(config: ProjectConfig, spark: SparkSession, wor
     """Create or refresh a monitoring table for Marvel character model serving data.
 
     This function processes the inference data from a Delta table,
-    parses the request and response JSON fields, joins with test and inference sets,
-    and writes the resulting DataFrame to a Delta table for monitoring purposes.
+    parses the request and response JSON fields, writes the resulting DataFrame to a Delta table for monitoring purposes.
 
     :param config: Configuration object containing catalog and schema names.
     :param spark: Spark session used for executing SQL queries and transformations.
@@ -49,8 +48,8 @@ def create_or_refresh_monitoring(config: ProjectConfig, spark: SparkSession, wor
                             StructField("Marital_Status", StringType(), True),
                             StructField("Teams", StringType(), True),
                             StructField("Origin", StringType(), True),
-                            StructField("Creators", StringType(), True),
-                            StructField("Id", StringType(), True),
+                            StructField("Magic", StringType(), True),
+                            StructField("Mutant", StringType(), True),
                         ]
                     )
                 ),
@@ -83,7 +82,6 @@ def create_or_refresh_monitoring(config: ProjectConfig, spark: SparkSession, wor
         F.col("timestamp_ms"),  # Select the newly created timestamp_ms column
         "databricks_request_id",
         "execution_duration_ms",
-        F.col("record.Id").alias("Id"),
         F.col("record.Height").alias("Height"),
         F.col("record.Weight").alias("Weight"),
         F.col("record.Universe").alias("Universe"),
@@ -92,57 +90,30 @@ def create_or_refresh_monitoring(config: ProjectConfig, spark: SparkSession, wor
         F.col("record.Marital_Status").alias("Marital_Status"),
         F.col("record.Teams").alias("Teams"),
         F.col("record.Origin").alias("Origin"),
-        F.col("record.Creators").alias("Creators"),
+        F.col("record.Magic").alias("Magic"),
+        F.col("record.Mutant").alias("Mutant"),
         F.col("parsed_response.predictions")[0].alias("prediction"),
         F.lit("marvel-characters-model-fe").alias("model_name"),
     )
 
-    test_set = spark.table(f"{config.catalog_name}.{config.schema_name}.test_set")
-
     # Log counts at each step to diagnose where data might be getting filtered out
-    logger.info(f"Records in df_final before join: {df_final.count()}")
+    logger.info(f"Records in df_final: {df_final.count()}")
 
-    # Check if test_set has data
-    test_count = test_set.count()
-    logger.info(f"Records in test_set: {test_count}")
-
-    # Join with test set
-    df_joined = df_final.join(test_set.select("Id", "Alive"), on="Id", how="left")
-    logger.info(f"Records after join: {df_joined.count()}")
-
-    # Count nulls in key columns
-    null_alive = df_joined.filter(F.col("Alive").isNull()).count()
-    null_prediction = df_joined.filter(F.col("prediction").isNull()).count()
-    logger.info(f"Records with null Alive: {null_alive}, Records with null prediction: {null_prediction}")
-
-    df_final_with_status = (
-        df_joined.withColumnRenamed("Alive", "alive")
-        .withColumn("alive", F.col("alive").cast("int"))
-        .withColumn("prediction", F.col("prediction").cast("int"))
-    )
+    df_final_with_status = df_final.withColumn("prediction", F.col("prediction").cast("int"))
 
     # Make dropna optional if we're losing all data
-    df_with_valid_values = df_final_with_status.dropna(subset=["alive", "prediction"])
+    df_with_valid_values = df_final_with_status.dropna(subset=["prediction"])
     valid_count = df_with_valid_values.count()
-    logger.info(f"Records with valid alive and prediction values: {valid_count}")
+    logger.info(f"Records with valid prediction values: {valid_count}")
 
     # If we lost all data after dropna, use the data before dropna
     if valid_count > 0:
         df_final_with_status = df_with_valid_values
-        logger.info("Using records with valid alive and prediction values")
+        logger.info("Using records with valid prediction values")
     else:
-        logger.warning("All records have null alive or prediction values. Using records with potential nulls.")
+        logger.warning("All records have null prediction values. Using records with potential nulls.")
 
-    # Check if we have data to proceed
-    status_count = df_final_with_status.count()
-    logger.info(f"Records after processing status: {status_count}")
-
-    if status_count == 0:
-        logger.warning("No records to write to monitoring table after processing.")
-        return
-
-    # We'll skip the marvel_features join since we already have Height and Weight in df_final
-    # Just ensure Height and Weight are properly cast to double
+    # Ensure Height and Weight are properly cast to double
     df_final_with_status = df_final_with_status.withColumn("Height", F.col("Height").cast("double"))
     df_final_with_status = df_final_with_status.withColumn("Weight", F.col("Weight").cast("double"))
 
@@ -194,7 +165,6 @@ def create_monitoring_table(config: ProjectConfig, spark: SparkSession, workspac
             timestamp_col="timestamp",
             granularities=["30 minutes"],
             model_id_col="model_name",
-            label_col="alive",
         ),
     )
 

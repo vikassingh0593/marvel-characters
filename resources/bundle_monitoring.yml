@@ -14,7 +14,7 @@ resources:
           spec:
             client: "3"
             dependencies:
-              - ./dist/*.whl
+              - ../dist/*.whl
 
       tasks:
         - task_key: "refresh_monitor_table"
