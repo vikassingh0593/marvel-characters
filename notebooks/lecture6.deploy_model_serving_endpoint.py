@@ -105,7 +105,7 @@ def call_endpoint(record):
         print(f"Warning: DBR_HOST '{host}' may be incomplete. Adding '.com' domain suffix.")
         host = f"{host}.com"
         
-    serving_endpoint = f"https://{host}/serving-endpoints/marvel-character-model-serving/invocations"
+    serving_endpoint = f"{host}/serving-endpoints/marvel-character-model-serving/invocations"
     
     print(f"Calling endpoint: {serving_endpoint}")
     
