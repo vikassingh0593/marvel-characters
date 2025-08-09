@@ -161,7 +161,7 @@ print(dataframe_records[0])
 # Call the endpoint with one sample record
 def call_endpoint(record):
     """Calls the model serving endpoint with a given input record."""
-    serving_endpoint = f"https://{os.environ['DBR_HOST']}/serving-endpoints/marvel-characters-ab-testing/invocations"
+    serving_endpoint = f"{os.environ['DBR_HOST']}/serving-endpoints/marvel-characters-ab-testing/invocations"
 
     response = requests.post(
         serving_endpoint,
