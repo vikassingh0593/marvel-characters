@@ -98,15 +98,7 @@ def call_endpoint(record):
     """
     Calls the model serving endpoint with a given input record.
     """
-    # Ensure the host URL is complete with domain suffix (.com, etc.)
-    host = os.environ['DBR_HOST']
-    # If the host doesn't contain a dot, it's likely missing the domain suffix
-    if '.' not in host:
-        print(f"Warning: DBR_HOST '{host}' may be incomplete. Adding '.com' domain suffix.")
-        host = f"{host}.com"
-        
-    serving_endpoint = f"{host}/serving-endpoints/marvel-character-model-serving/invocations"
-    
+    serving_endpoint = f"{os.environ['DBR_HOST']}/serving-endpoints/marvel-character-model-serving/invocations"    
     print(f"Calling endpoint: {serving_endpoint}")
     
     response = requests.post(
