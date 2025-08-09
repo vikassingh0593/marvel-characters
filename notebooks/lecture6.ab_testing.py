@@ -31,21 +31,16 @@ from marvel_characters.utils import is_databricks
 # Set up Databricks or local MLflow tracking
 spark = SparkSession.builder.getOrCreate()
 
+w = WorkspaceClient()
+
+os.environ["DBR_HOST"] = w.config.host
+os.environ["DBR_TOKEN"] = w.tokens.create(lifetime_seconds=1200).token_value
+
 if not is_databricks():
     load_dotenv()
-    # DBR_TOKEN and DBR_HOST should be set in your .env file
-    os.environ.get("DBR_TOKEN"), "DBR_TOKEN must be set in your environment or .env file."
-    os.environ.get("DBR_HOST"), "DBR_HOST must be set in your environment or .env file."
     profile = os.environ["PROFILE"]
     mlflow.set_tracking_uri(f"databricks://{profile}")
     mlflow.set_registry_uri(f"databricks-uc://{profile}")
-
-else:
-    from pyspark.dbutils import DBUtils
-    dbutils = DBUtils(spark)
-    os.environ["DBR_TOKEN"] = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
-    os.environ["DBR_HOST"] = spark.conf.get("spark.databricks.workspaceUrl")
-
 
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 # Define tags (customize as needed)
