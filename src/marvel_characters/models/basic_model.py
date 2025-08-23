@@ -146,7 +146,7 @@ class BasicModel:
                 table_name=f"{self.catalog_name}.{self.schema_name}.test_set",
                 version=self.test_data_version,
             )
-            mlflow.log_input(test_dataset, context="training")
+            mlflow.log_input(test_dataset, context="testing")
             self.model_info = mlflow.sklearn.log_model(
                 sk_model=self.pipeline,
                 artifact_path="lightgbm-pipeline-model",
