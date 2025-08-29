@@ -72,11 +72,11 @@ run = mlflow.get_run(basic_model.run_id)
 
 # COMMAND ----------
 inputs = run.inputs.dataset_inputs
-training_input = next((x for x in inputs if x.tags[0].value == 'training'), None)
+training_input = next((x for x in inputs if len(x.tags) > 0 and x.tags[0].value == 'training'), None)
 training_source = mlflow.data.get_source(training_input)
 training_source.load()
 # COMMAND ----------
-testing_input = next((x for x in inputs if x.tags[0].value == 'testing'), None)
+testing_input = next((x for x in inputs if len(x.tags) > 0 and x.tags[0].value == 'testing'), None)
 testing_source = mlflow.data.get_source(testing_input)
 testing_source.load()
 
